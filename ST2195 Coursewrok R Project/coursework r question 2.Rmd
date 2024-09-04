@@ -1,0 +1,238 @@
+---
+title: "ST2195 Coursework Project R Question 2"
+author: "Jessica Lawrence Gunawan - 210421794"
+date: "2023-01-02"
+output: html_document
+---
+
+# ST2195 Coursework
+
+## Question 2 : Do older planes suffer more delays?
+
+```{r}
+# Set working directory
+
+setwd("~/Desktop/ST2195 Coursework Project")
+```
+
+```{r}
+# Import and load necessary libraries
+
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+```
+
+```{r}
+# Load the datasets
+
+flight2005 <- read.csv("2005.csv", header = TRUE)
+flight2006 <- read.csv("2006.csv", header = TRUE)
+
+airports <- read.csv("airports.csv", header = TRUE)
+carriers <- read.csv("carriers.csv", header = TRUE)
+plane_data <- read.csv("plane-data.csv", header = TRUE)
+```
+
+```{r}
+# Row binding the flights data in 2005 and 2006
+
+flights <- rbind(flight2005, flight2006)
+```
+
+```{r}
+# Drop rows with missing values
+
+flights <- flights %>%
+  drop_na(DepTime, ArrTime, DepDelay, ArrDelay)
+```
+
+```{r}
+# Re-check for any missing values
+
+colSums(is.na(flights))
+```
+
+### Assumptions made :
+
+-   'Year' column in flights dataset refers to be the year that the plane was used to fly by passengers
+-   'year' column in plane_data dataset refers to be the year that the plane was manufactured
+
+Therefore, age of plane is gotten by subtracting the value in 'Year' column of flight dataset with the value of 'year' column in plane_data dataset
+
+Based on the assumption made above, there are several cases where the age appears to be a negative value which is does not make sense, and hence we will not include them in the analysis
+
+```{r}
+# Look at the summary of plane_data dataset
+
+str(plane_data)
+```
+
+```{r}
+# Merge between flights and plane_data
+
+plane_delay <- left_join(flights, plane_data, by = c("TailNum" = "tailnum"))
+
+plane_delay
+```
+
+```{r}
+str(plane_delay)
+```
+
+```{r}
+# Filtering out any invalid values in 'year' column
+
+plane_delay <- plane_delay %>% 
+               filter(year != "0000" & year != "None")
+```
+
+```{r}
+# Converting the manufacturing years from a string data type to an integer data type
+
+plane_delay <- plane_delay[!is.na(plane_delay$year), ]
+plane_delay$year <- as.integer(plane_delay$year)
+
+str(plane_delay)
+```
+
+```{r}
+# Create a new column that indicates the age of plane
+
+plane_delay$plane_age <- plane_delay$Year - plane_delay$year
+
+plane_delay
+```
+
+```{r}
+# Group the data by age of plane and count the number of flights
+
+flights_by_age <- plane_delay %>% 
+  group_by(plane_age) %>% 
+  summarise(`Total Flights` = n()) %>% 
+  rename(`Age of Plane` = plane_age)
+```
+
+```{r}
+# Sort values by Age of Plane in ascending order
+
+flights_by_age <- flights_by_age %>%
+  arrange(`Age of Plane`)
+
+flights_by_age
+```
+
+```{r}
+# Querying necessary data to analyse average delay and total delayed flights based on the age of plane
+
+plane_age_mean <- plane_delay %>%
+  filter(between(plane_age, 0, 50), ArrDelay > 0) %>%
+  group_by(plane_age) %>%
+  summarise("Average Arrival Delay" = mean(ArrDelay, na.rm = TRUE),
+            "Total Delayed Flights" = n()) %>%
+  rename("Age of Plane" = plane_age)
+
+plane_age_mean
+```
+
+```{r}
+# Create scatter plot for analyzing average delay based on the age of plane
+ggplot(data = plane_age_mean) +
+  geom_point(aes(x = `Age of Plane`, y = `Average Arrival Delay`)) + 
+  geom_smooth(aes(x = `Age of Plane`, y = `Average Arrival Delay`), method = "lm", se = FALSE, color = "red") +
+  labs(x = "Age of Plane", y = "Average Arrival Delay (min)", title = "Average Delay based on Age of Plane") +
+  theme_classic() +
+  theme(axis.text.x = element_text(vjust = 0.5),
+        plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5)) 
+```
+
+It can be seen from the data above, that the distribution of the total flights based on the age of plane is not equal. The sample size for older planes are relatively smaller than the younger planes. Therefore, it is better to check futher on the distribution of the total flights based on the age of plane.
+
+```{r}
+# Plot a histogram of total delayed flights versus age of plane
+
+ggplot(plane_age_mean, aes(x = `Age of Plane`, weight = `Total Delayed Flights`)) +
+  geom_histogram(bins = 50, color = "black", fill = "blue") +
+  labs(title = "Histogram of Total Flights versus Age of Plane", x = "Age of Plane", y = "Total Delayed Flights")
+```
+
+From the histogram above, we can conclude that the sample size for age below 23 is relatively bigger. Hence, we will plot another scatter plot for age between 0 to 23 i.e. age that has bigger sample size. This is so that we can get more accurate result
+
+```{r}
+# Observing average arrival delay based on the age of plane between 0 and 23
+
+plane_age_mean_2 <- plane_delay %>%
+  filter(between(plane_age, 0, 23), ArrDelay > 0) %>%
+  group_by(plane_age) %>%
+  summarise("Average Arrival Delay" = mean(ArrDelay, na.rm = TRUE),
+            "Total Delayed Flights" = n()) %>%
+  rename("Age of Plane" = plane_age)
+
+plane_age_mean_2
+```
+
+```{r}
+# Create a scatter plot for analyzing average delay based on the age of plane between 0 and 23
+
+ggplot(data = plane_age_mean_2) +
+  geom_point(aes(x = `Age of Plane`, y = `Average Arrival Delay`)) + 
+  geom_smooth(aes(x = `Age of Plane`, y = `Average Arrival Delay`), method = "lm", se = FALSE, color = "red") +
+  labs(x = "Age of Plane", y = "Average Arrival Delay (min)", title = "Average Delay based on Age of Plane") +
+  theme_classic() +
+  theme(axis.text.x = element_text(vjust = 0.5),
+        plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5)) 
+```
+
+```{r}
+# Querying necessary data to analyse percentage of delayed flights based on the age of plane
+
+plane_age_percentage <- plane_delay %>% 
+  filter(between(plane_age, 0, 50)) %>%
+  group_by(plane_age) %>%
+  summarise('Total Delayed Flights' = sum(ArrDelay > 0, na.rm = TRUE),
+            'Total Flights' = n()) %>% 
+  mutate('% of Delayed Flights' = (`Total Delayed Flights` / `Total Flights`) * 100)
+
+plane_age_percentage
+```
+
+```{r}
+# Create a scatter plot for analyzing % of delayed flights based on the age of plane
+
+ggplot(data = plane_age_percentage) +
+  geom_point(aes(x = plane_age, y = `% of Delayed Flights`)) + 
+  geom_smooth(aes(x = plane_age, y = `% of Delayed Flights`), method = "lm", se = FALSE, color = "red") +
+  labs(x = "Age of Plane", y = "% of Delayed Flights", title = "Percentage of Delayed Flights based on Age of Plane") +
+  theme_classic() +
+  theme(axis.text.x = element_text(vjust = 0.5),
+        plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5)) 
+```
+
+```{r}
+# Observing percentage of delayed flights based on the age of plane between 0 and 23
+
+plane_age_percentage_2 <- plane_delay %>% 
+  filter(between(plane_age, 0, 23)) %>%
+  group_by(plane_age) %>%
+  summarise('Total Delayed Flights' = sum(ArrDelay > 0, na.rm = TRUE),
+            'Total Flights' = n()) %>% 
+  mutate('% of Delayed Flights' = (`Total Delayed Flights` / `Total Flights`) * 100)
+
+plane_age_percentage_2
+```
+
+```{r}
+# Create a scatter plot for analyzing % of delayed flights based on the age of plane between 0 and 23
+
+ggplot(data = plane_age_percentage_2) +
+  geom_point(aes(x = plane_age, y = `% of Delayed Flights`)) + 
+  geom_smooth(aes(x = plane_age, y = `% of Delayed Flights`), method = "lm", se = FALSE, color = "red") +
+  labs(x = "Age of Plane", y = "% of Delayed Flights", title = "Percentage of Delayed Flights based on Age of Plane") +
+  theme_classic() +
+  theme(axis.text.x = element_text(vjust = 0.5),
+        plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5)) 
+```
