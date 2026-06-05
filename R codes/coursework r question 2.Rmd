@@ -1,6 +1,6 @@
 ---
 title: "ST2195 Coursework Project R Question 2"
-author: "Jessica Lawrence Gunawan - 210421794"
+author: "Jessica Lawrence Gunawan"
 date: "2023-01-02"
 output: html_document
 ---
